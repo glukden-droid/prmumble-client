@@ -61,7 +61,7 @@ jobs:
         run: |
           export MUMBLE_BUILD_NUMBER="${TAG##*.}"
           # PR build number in the version string (1.5.939-prN), MSVC reads CL
-          export CL="/DPR_BUILD=${{ github.run_number }}"
+          export CL="-DPR_BUILD=${{ github.run_number }}"
           ./.github/workflows/build.sh windows-2022 static x86_64
         env:
           TAG: ${{ inputs.tag }}
