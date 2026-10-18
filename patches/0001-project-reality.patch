@@ -1,0 +1,1058 @@
+diff --git a/installer/ClientInstaller.cs b/installer/ClientInstaller.cs
+index a2e2a52..fe243ea 100644
+--- a/installer/ClientInstaller.cs
++++ b/installer/ClientInstaller.cs
+@@ -35,52 +35,7 @@ public class ClientInstaller : MumbleInstall {
+ 	public ClientInstaller(string version, string arch, Features features) {
+ 		List<string> binaries = new List<string>();
+ 		string[] plugins = {
+-			"amongus.dll",
+-			"aoc.dll",
+-			"arma2.dll",
+-			"bf1.dll",
+-			"bf2.dll",
+-			"bf3.dll",
+-			"bf4.dll",
+-			"bf4_x86.dll",
+-			"bf1942.dll",
+-			"bf2142.dll",
+-			"bfbc2.dll",
+-			"bfheroes.dll",
+-			"blacklight.dll",
+-			"borderlands.dll",
+-			"borderlands2.dll",
+-			"breach.dll",
+-			"cod2.dll",
+-			"cod4.dll",
+-			"cod5.dll",
+-			"codmw2.dll",
+-			"codmw2so.dll",
+-			"cs.dll",
+-			"dys.dll",
+-			"etqw.dll",
+-			"ffxiv.dll",
+-			"ffxiv_x64.dll",
+-			"gmod.dll",
+-			"gtaiv.dll",
+-			"gtasa.dll",
+-			"gtav.dll",
+-			"gw.dll",
+-			"insurgency.dll",
+-			"jc2.dll",
+-			"link.dll",
+-			"lol.dll",
+-			"lotro.dll",
+-			"ql.dll",
+-			"rl.dll",
+-			"se.dll",
+-			"sr.dll",
+-			"ut3.dll",
+-			"ut99.dll",
+-			"ut2004.dll",
+-			"wolfet.dll",
+-			"wow.dll",
+-			"wow_x64.dll"
++			"ProjectReality.dll", // PR: only the ProjectReality (Link) plugin
+ 		};
+ 
+ 		string[] licenses = {
+diff --git a/plugins/CMakeLists.txt b/plugins/CMakeLists.txt
+index da3be13..87490e4 100644
+--- a/plugins/CMakeLists.txt
++++ b/plugins/CMakeLists.txt
+@@ -26,63 +26,7 @@ if(${CMAKE_BUILD_TYPE} MATCHES Debug)
+ 	)
+ endif()
+ 
+-if(WIN32 OR (UNIX AND CMAKE_SYSTEM_NAME STREQUAL "Linux"))
+-	# Plugins available on Windows and Linux
+-	list(APPEND AVAILABLE_PLUGINS
+-		"amongus"
+-		"aoc"
+-		"arma2"
+-		"bf1"
+-		"bf1942"
+-		"bf2"
+-		"bf2142"
+-		"bf3"
+-		"bf4"
+-		"bf4_x86"
+-		"bfbc2"
+-		"bfheroes"
+-		"blacklight"
+-		"borderlands"
+-		"borderlands2"
+-		"breach"
+-		"cod2"
+-		"cod4"
+-		"cod5"
+-		"codmw2"
+-		"codmw2so"
+-		"cs"
+-		"css"
+-		"dods"
+-		"dys"
+-		"etqw"
+-		"ffxiv"
+-		"ffxiv_x64"
+-		"gmod"
+-		"gtaiv"
+-		"gtasa"
+-		"gtav"
+-		"gw"
+-		"hl2dm"
+-		"insurgency"
+-		"jc2"
+-		"l4d"
+-		"l4d2"
+-		"lol"
+-		"lotro"
+-		"ql"
+-		"rl"
+-		"se"
+-		"sr"
+-		"sto"
+-		"tf2"
+-		"ut2004"
+-		"ut3"
+-		"ut99"
+-		"wolfet"
+-		"wow"
+-		"wow_x64"
+-	)
+-endif()
++# PR: only the ProjectReality (Link) plugin, the game plugins are not needed
+ 
+ list(REMOVE_DUPLICATES AVAILABLE_PLUGINS)
+ 
+diff --git a/plugins/link/CMakeLists.txt b/plugins/link/CMakeLists.txt
+index 133b054..d396711 100644
+--- a/plugins/link/CMakeLists.txt
++++ b/plugins/link/CMakeLists.txt
+@@ -8,18 +8,12 @@ add_library(link SHARED
+ 	"SharedMemory.cpp"
+ )
+ 
+-add_executable(link_tester
+-	"link_tester.cpp"
+-	"SharedMemory.cpp"
+-)
+-
+ if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+ 	find_library(LIB_RT "rt")
+ 	target_link_libraries(link PRIVATE ${LIB_RT})
+-	target_link_libraries(link_tester PRIVATE ${LIB_RT})
+ endif()
+ 
+ target_include_directories(link PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+-target_include_directories(link_tester PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+ 
+-set_target_properties(link_tester PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
++# PR: the plugin file is ProjectReality.dll
++set_target_properties(link PROPERTIES OUTPUT_NAME "ProjectReality")
+diff --git a/plugins/link/link.cpp b/plugins/link/link.cpp
+index a0e9d4e..ec7cb5a 100644
+--- a/plugins/link/link.cpp
++++ b/plugins/link/link.cpp
+@@ -18,7 +18,7 @@
+ #define UNUSED(x) (void) x
+ 
+ 
+-constexpr const char *defaultName        = "Link";
++constexpr const char *defaultName        = "ProjectReality";
+ constexpr const char *defaultDescription = "Reads positional data from a linked game/software";
+ 
+ std::string pluginName(defaultName);
+diff --git a/src/Mumble.proto b/src/Mumble.proto
+index c3a23f2..b342401 100644
+--- a/src/Mumble.proto
++++ b/src/Mumble.proto
+@@ -232,7 +232,9 @@ message UserState {
+ 	// True if the user is currently recording.
+ 	optional bool recording = 19;
+ 	// A list of temporary access tokens to be respected when processing this request.
+-	repeated string temporary_access_tokens = 20;
++	repeated string temporary_access_tokens = 120; // PR: 20 is position
++	// PR: own in-game position, the server relays it to the team (launcher HUD)
++	repeated float position = 20;
+ 	// A list of channels the user wants to start listening to.
+ 	repeated uint32 listening_channel_add = 21;
+ 	// a list of channels the user does no longer want to listen to.
+diff --git a/src/mumble/AudioOutputSpeech.cpp b/src/mumble/AudioOutputSpeech.cpp
+index 542f6dd..57fa7fe 100644
+--- a/src/mumble/AudioOutputSpeech.cpp
++++ b/src/mumble/AudioOutputSpeech.cpp
+@@ -298,7 +298,10 @@ bool AudioOutputSpeech::prepareSampleBuffer(unsigned int frameCount) {
+ 					qlFrames << QByteArray(reinterpret_cast< const char * >(cache.getAudioData().data()),
+ 										   static_cast< int >(cache.getAudioData().size()));
+ 
+-					if (cache.containsPositionalInformation()) {
++					// PR: only local voice (normal talking, max 75 m as PRMumble 1.3) is positional; squad radio,
++					// SL and commander (whisper/shout/listen) are always heard at full volume
++					if (cache.containsPositionalInformation()
++						&& cache.getContext() == Mumble::Protocol::AudioContext::NORMAL) {
+ 						assert(cache.getPositionalInformation().size() == 3);
+ 						assert(fPos.size() == 3);
+ 
+diff --git a/src/mumble/CMakeLists.txt b/src/mumble/CMakeLists.txt
+index 18e5882..5db4df7 100644
+--- a/src/mumble/CMakeLists.txt
++++ b/src/mumble/CMakeLists.txt
+@@ -577,6 +577,10 @@ if(WIN32)
+ 	target_sources(mumble_client_object_lib PRIVATE
+ 		"GlobalShortcut_win.cpp"
+ 		"GlobalShortcut_win.h"
++		"PRReality.cpp"
++		"PRReality.h"
++		"PRShortcuts.cpp"
++		"PRShortcuts.h"
+ 		"Log_win.cpp"
+ 		"SharedMemory_win.cpp"
+ 		"TaskList.cpp"
+diff --git a/src/mumble/ClientUser.h b/src/mumble/ClientUser.h
+index 5b91185..d0b2060 100644
+--- a/src/mumble/ClientUser.h
++++ b/src/mumble/ClientUser.h
+@@ -38,6 +38,11 @@ public:
+ 	QByteArray qbaTextureFormat;
+ 	QString qsFriendName;
+ 
++	/// PR: in-game name ("name" of the plugin identity) and in-game position
++	/// (UserState.position) for the launcher HUD
++	QString qsPRName;
++	float fPRPosition[3] = { 0.0f, 0.0f, 0.0f };
++
+ 	QString getFlagsString() const;
+ 	ClientUser(QObject *p = nullptr);
+ 
+diff --git a/src/mumble/GlobalShortcut_win.cpp b/src/mumble/GlobalShortcut_win.cpp
+index a07c069..a983d15 100644
+--- a/src/mumble/GlobalShortcut_win.cpp
++++ b/src/mumble/GlobalShortcut_win.cpp
+@@ -319,6 +319,35 @@ QList< Shortcut > GlobalShortcutWin::migrateSettings(const QList< Shortcut > &ol
+ 	return newShortcuts;
+ }
+ 
++bool GlobalShortcutWin::toLegacyButtons(const QList< QVariant > &buttons, QList< QVariant > &legacy) {
++	// Mumble 1.3 stored a DirectInput button as [uint (instance << 8) | DIDFT_PSHBUTTON, device GUID string]
++	const QString keyboard = QLatin1String("{6f1d2b61-d5a0-11cf-bfc7-444553540000}");
++	const QString mouse    = QLatin1String("{6f1d2b60-d5a0-11cf-bfc7-444553540000}");
++	constexpr unsigned int DIDFT_PSHBUTTON_ = 0x04;
++
++	legacy.clear();
++	for (const QVariant &button : buttons) {
++		if (button.userType() == qMetaTypeId< InputKeyboard >()) {
++			const InputKeyboard input = button.value< InputKeyboard >();
++			bool e0                   = input.e0;
++			if (input.code == 0x45) {
++				// See migrateSettings(): Pause / Numlock have the extended bit inverted
++				e0 = !e0;
++			}
++			const unsigned int value = (static_cast< unsigned int >(input.code) << 8) | (e0 ? 0x8000U : 0U)
++									   | DIDFT_PSHBUTTON_;
++			legacy << QVariant(QVariantList({ QVariant(value), QVariant(keyboard) }));
++		} else if (button.userType() == qMetaTypeId< InputMouse >()) {
++			const unsigned int value =
++				((static_cast< unsigned int >(button.value< InputMouse >()) + 2) << 8) | DIDFT_PSHBUTTON_;
++			legacy << QVariant(QVariantList({ QVariant(value), QVariant(mouse) }));
++		} else {
++			return false;
++		}
++	}
++	return true;
++}
++
+ GlobalShortcutWin::GlobalShortcutWin()
+ 	: m_msgQueue(GlobalShortcutWin::QUEUE_CAPACITY)
+ #ifdef USE_XBOXINPUT
+diff --git a/src/mumble/GlobalShortcut_win.h b/src/mumble/GlobalShortcut_win.h
+index 9fc23d9..29d6ded 100644
+--- a/src/mumble/GlobalShortcut_win.h
++++ b/src/mumble/GlobalShortcut_win.h
+@@ -38,6 +38,11 @@ public:
+ 	/// @returns List of shortcuts in the new format.
+ 	static QList< Shortcut > migrateSettings(const QList< Shortcut > &oldShortcuts);
+ 
++	/// PR: reverse of migrateSettings() for keyboard and mouse buttons, so that the
++	/// Project Reality launcher can read the shortcuts (Mumble 1.3 DirectInput format).
++	/// @returns false if a button can't be expressed in the old format.
++	static bool toLegacyButtons(const QList< QVariant > &buttons, QList< QVariant > &legacy);
++
+ 	/// Inject a native Windows raw input message into GlobalShortcutWin's
+ 	/// thread. This method is meant to be called from the main thread
+ 	/// to pass native Windows keyboard messages to GlobalShortcutWin.
+diff --git a/src/mumble/Messages.cpp b/src/mumble/Messages.cpp
+index bcfdc15..d2de53c 100644
+--- a/src/mumble/Messages.cpp
++++ b/src/mumble/Messages.cpp
+@@ -38,6 +38,9 @@
+ #include "crypto/CryptState.h"
+ #include "crypto/CryptStateOCB2.h"
+ #include "Global.h"
++#ifdef Q_OS_WIN
++#	include "PRReality.h"
++#endif
+ 
+ #include <QTextDocumentFragment>
+ 
+@@ -125,6 +128,11 @@ void MainWindow::msgServerSync(const MumbleProto::ServerSync &msg) {
+ 		Global::get().sh->disconnect();
+ 		return;
+ 	}
++
++#ifdef Q_OS_WIN
++	// PR: our in-game position goes to the new server right away
++	PRReality::resetPosition();
++#endif
+ 	Global::get().uiSession = msg.session();
+ 
+ 	// Send an initial ping and establish the UDP connection unless TCP mode is forced
+@@ -381,6 +389,16 @@ void MainWindow::msgUserState(const MumbleProto::UserState &msg) {
+ 		pmModel->setUserId(pDst, static_cast< int >(msg.user_id()));
+ 	}
+ 
++#ifdef Q_OS_WIN
++	// PR: the PR server relays identities and in-game positions for the HUD
++	if (msg.has_plugin_identity()) {
++		PRReality::setIdentity(pDst, u8(msg.plugin_identity()));
++	}
++	if (msg.position_size() > 0) {
++		PRReality::setPosition(pDst, msg.position().data(), msg.position_size());
++	}
++#endif
++
+ 	if (channel) {
+ 		Channel *oldChannel = pDst->cChannel;
+ 		if (channel != oldChannel) {
+diff --git a/src/mumble/PRReality.cpp b/src/mumble/PRReality.cpp
+new file mode 100644
+index 0000000..0674b15
+--- /dev/null
++++ b/src/mumble/PRReality.cpp
+@@ -0,0 +1,206 @@
++// Copyright The Mumble Developers. All rights reserved.
++// Use of this source code is governed by a BSD-style license
++// that can be found in the LICENSE file at the root of the
++// Mumble source tree or at <https://www.mumble.info/LICENSE>.
++
++// Project Reality: the data PRMumble 1.3 (class RealityData in mumble_app.dll)
++// gives the PR launcher for the in-game HUD "who is talking". Rebuilt from
++// mumble_app.dll; the launcher side is Reality.BF2.dll.
++//
++// Shared memory Local\PRMumbleSharedData<N> (the launcher tries N = 1..10),
++// 32 KiB, UTF-8 text, at most 32767 bytes, records joined by \x02, fields by \x01:
++//   name, channel, talk state, muted, deafened, x, y, z
++// - users: those in our channel and the channels linked to it, then the users
++//   who are talking (whisper/shout from elsewhere); we are always included,
++//   the others only when not muted, deafened, suppressed, locally muted or ignored;
++// - name: "name" of the plugin identity, else the user name;
++// - channel: name of the user's channel ("Commander", "Squad 3", ...);
++// - talk state: Settings::TalkState (0 passive, 1 talking, 2 whisper, 3 shout);
++// - muted: server mute, local mute or self mute; deafened: server or self deaf;
++// - x y z: the in-game position the user's PR client sent in UserState.position
++//   (field 20, the PR server relays it to the team only), no decimals.
++
++#include "PRReality.h"
++
++#include "Channel.h"
++#include "ClientUser.h"
++#include "Global.h"
++#include "ServerHandler.h"
++
++#include <QtCore/QTimer>
++
++#include "win.h"
++
++#include <cmath>
++#include <cstring>
++#include <string>
++
++namespace PRReality {
++
++static constexpr int SHM_SIZE = 32768;
++static constexpr int SHM_MAX  = 10;
++
++static HANDLE s_mapping = nullptr;
++static char *s_view     = nullptr;
++static QByteArray s_last;
++
++static Position3D s_sentPos;
++static bool s_resend = true;
++
++static bool openSharedMemory() {
++	if (s_view) {
++		return true;
++	}
++	for (int i = 1; i <= SHM_MAX; i++) {
++		const std::wstring name = L"Local\\PRMumbleSharedData" + std::to_wstring(i);
++		HANDLE h = CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, SHM_SIZE, name.c_str());
++		if (!h) {
++			continue;
++		}
++		if (GetLastError() == ERROR_ALREADY_EXISTS) {
++			// Another PRMumble owns it
++			CloseHandle(h);
++			continue;
++		}
++		s_view = static_cast< char * >(MapViewOfFile(h, FILE_MAP_ALL_ACCESS, 0, 0, SHM_SIZE));
++		if (!s_view) {
++			CloseHandle(h);
++			break;
++		}
++		s_mapping = h;
++		std::memset(s_view, 0, SHM_SIZE);
++		return true;
++	}
++	qWarning("RealityData: Failed to create shared memory");
++	return false;
++}
++
++static bool shown(const ClientUser *u, const ClientUser *self) {
++	if (!u->cChannel) {
++		return false;
++	}
++	if (u == self) {
++		return true;
++	}
++	return !(u->bMute || u->bDeaf || u->bSuppress || u->bSelfMute || u->bSelfDeaf || u->bLocalMute
++			 || u->bLocalIgnore);
++}
++
++static QString record(const ClientUser *u) {
++	const QString name = u->qsPRName.isEmpty() ? u->qsName : u->qsPRName;
++	const bool muted   = u->bMute || u->bLocalMute || u->bSelfMute;
++	const bool deaf    = u->bDeaf || u->bSelfDeaf;
++	return QString::fromLatin1("%1\x01%2\x01%3\x01%4\x01%5\x01%6\x01%7\x01%8")
++		.arg(name)
++		.arg(u->cChannel->qsName)
++		.arg(static_cast< int >(u->tsState))
++		.arg(muted ? 1 : 0)
++		.arg(deaf ? 1 : 0)
++		.arg(static_cast< double >(u->fPRPosition[0]), 0, 'f', 0)
++		.arg(static_cast< double >(u->fPRPosition[1]), 0, 'f', 0)
++		.arg(static_cast< double >(u->fPRPosition[2]), 0, 'f', 0);
++}
++
++static QByteArray buildRecords() {
++	const ClientUser *self = ClientUser::get(Global::get().uiSession);
++	if (!self || !self->cChannel) {
++		return QByteArray();
++	}
++
++	QList< ClientUser * > users;
++	for (Channel *c : self->cChannel->allLinks()) {
++		for (User *u : c->qlUsers) {
++			users << static_cast< ClientUser * >(u);
++		}
++	}
++	for (ClientUser *u : ClientUser::getTalking()) {
++		if (!users.contains(u)) {
++			users << u;
++		}
++	}
++
++	QStringList records;
++	for (const ClientUser *u : users) {
++		if (shown(u, self) && !u->qsName.isEmpty()) {
++			records << record(u);
++		}
++	}
++	QByteArray out = records.join(QChar(0x02)).toUtf8();
++	if (out.size() > SHM_SIZE - 1) {
++		out.truncate(SHM_SIZE - 1);
++	}
++	return out;
++}
++
++void update() {
++	if (!openSharedMemory()) {
++		return;
++	}
++	const QByteArray data = Global::get().sh ? buildRecords() : QByteArray();
++	if (data == s_last) {
++		return;
++	}
++	std::memset(s_view, 0, SHM_SIZE);
++	std::memcpy(s_view, data.constData(), static_cast< size_t >(data.size()));
++	s_last = data;
++}
++
++void start(QObject *parent) {
++	QTimer *timer = new QTimer(parent);
++	QObject::connect(timer, &QTimer::timeout, &update);
++	timer->start(UPDATE_INTERVAL);
++}
++
++void setIdentity(ClientUser *user, const QString &identity) {
++	// As PRMumble 1.3: the text between "name":" and the next quote
++	const QString key = QLatin1String("\"name\":\"");
++	user->qsPRName.clear();
++	const int start = identity.indexOf(key);
++	if (start < 0) {
++		return;
++	}
++	const int from = start + key.size();
++	const int end  = identity.indexOf(QLatin1Char('"'), from + 1);
++	if (end < 0 || from >= end || from >= identity.size() || end >= identity.size()) {
++		return;
++	}
++	user->qsPRName = identity.mid(from, end - from);
++}
++
++void setPosition(ClientUser *user, const float *pos, int count) {
++	for (int i = 0; i < 3; i++) {
++		user->fPRPosition[i] = i < count ? pos[i] : 0.0f;
++	}
++}
++
++void sendPosition(const Position3D &pos, bool available) {
++	// As PRMumble 1.3 (Plugins::fetch): send when an axis moved more than
++	// POSITION_THRESHOLD since the last sent position; no game -> 0,0,0
++	const Position3D p = available ? pos : Position3D();
++	if (!s_resend && std::fabs(p.x - s_sentPos.x) <= POSITION_THRESHOLD && std::fabs(p.y - s_sentPos.y) <= POSITION_THRESHOLD
++		&& std::fabs(p.z - s_sentPos.z) <= POSITION_THRESHOLD) {
++		return;
++	}
++	s_sentPos = p;
++
++	if (ClientUser *self = ClientUser::get(Global::get().uiSession)) {
++		const float own[3] = { p.x, p.y, p.z };
++		setPosition(self, own, 3);
++	}
++	if (!Global::get().sh || !Global::get().uiSession) {
++		return;
++	}
++	s_resend = false;
++	MumbleProto::UserState mpus;
++	mpus.set_session(Global::get().uiSession);
++	mpus.add_position(p.x);
++	mpus.add_position(p.y);
++	mpus.add_position(p.z);
++	Global::get().sh->sendMessage(mpus);
++}
++
++void resetPosition() {
++	s_resend = true;
++}
++
++} // namespace PRReality
+diff --git a/src/mumble/PRReality.h b/src/mumble/PRReality.h
+new file mode 100644
+index 0000000..500f490
+--- /dev/null
++++ b/src/mumble/PRReality.h
+@@ -0,0 +1,37 @@
++// Copyright The Mumble Developers. All rights reserved.
++// Use of this source code is governed by a BSD-style license
++// that can be found in the LICENSE file at the root of the
++// Mumble source tree or at <https://www.mumble.info/LICENSE>.
++
++#ifndef MUMBLE_MUMBLE_PRREALITY_H_
++#define MUMBLE_MUMBLE_PRREALITY_H_
++
++#include "PositionalData.h"
++
++#include <QtCore/QString>
++
++class ClientUser;
++class QObject;
++
++/// Project Reality: in-game HUD data for the PR launcher (see PRReality.cpp).
++namespace PRReality {
++/// How often the HUD shared memory is refreshed, ms
++static constexpr int UPDATE_INTERVAL = 50;
++/// Own position is sent again when an axis changed more than this (as PRMumble 1.3)
++static constexpr float POSITION_THRESHOLD = 10.0f;
++
++/// Starts refreshing the HUD shared memory.
++void start(QObject *parent);
++/// Writes the HUD shared memory now.
++void update();
++/// Remembers the in-game name from a user's plugin identity (JSON "name").
++void setIdentity(ClientUser *user, const QString &identity);
++/// Remembers a user's in-game position from UserState.position.
++void setPosition(ClientUser *user, const float *pos, int count);
++/// Sends our in-game position (UserState.position) if it changed.
++void sendPosition(const Position3D &pos, bool available);
++/// Forgets the last sent position, so that it goes to a new server again.
++void resetPosition();
++} // namespace PRReality
++
++#endif
+diff --git a/src/mumble/PRShortcuts.cpp b/src/mumble/PRShortcuts.cpp
+new file mode 100644
+index 0000000..51b3604
+--- /dev/null
++++ b/src/mumble/PRShortcuts.cpp
+@@ -0,0 +1,226 @@
++// Copyright The Mumble Developers. All rights reserved.
++// Use of this source code is governed by a BSD-style license
++// that can be found in the LICENSE file at the root of the
++// Mumble source tree or at <https://www.mumble.info/LICENSE>.
++
++// Project Reality: keeps the shortcuts in the registry key of PRMumble 1.3
++// (HKCU\SOFTWARE\Project Reality\PR Mumble\shortcuts, QSettings array), because
++// the PR launcher reads it to show the transmit state in the game HUD and
++// writes its own key binds there. The launcher parses the values byte by byte,
++// so they are written exactly as Mumble 1.3 wrote them.
++
++#include "PRShortcuts.h"
++
++#include "GlobalShortcutTypes.h"
++#include "GlobalShortcut_win.h"
++#include "Settings.h"
++
++#include <QtCore/QBuffer>
++#include <QtCore/QDataStream>
++#include <QtCore/QSettings>
++
++#include "win.h"
++
++#include <string>
++
++namespace PRShortcuts {
++
++static const char *REG_PATH = "HKEY_CURRENT_USER\\SOFTWARE\\Project Reality\\PR Mumble";
++static const wchar_t *REG_KEY = L"SOFTWARE\\Project Reality\\PR Mumble\\shortcuts";
++
++// PR 1.3 shortcut index (launcher enum Actions) -> Mumble 1.5 shortcut type
++struct IndexType {
++	int prIndex;
++	int type;
++};
++static const IndexType INDEX_TYPES[] = {
++	{ 1, GlobalShortcutType::PushToTalk },  { 15, GlobalShortcutType::MuteSelf },
++	{ 16, GlobalShortcutType::DeafenSelf }, { 21, GlobalShortcutType::VolumeUp },
++	{ 22, GlobalShortcutType::VolumeDown },
++};
++
++// PR 1.3 whisper shortcuts: 2 = squad radio (current channel), 3 = all squad
++// leaders, 4..12 = squad leader 1..9, 13 = commander (parent channel + group)
++static const char *SL_GROUPS[] = { "bf2_squad_leader",        "bf2_first_squad_leader",  "bf2_second_squad_leader",
++								   "bf2_third_squad_leader",  "bf2_fourth_squad_leader", "bf2_fifth_squad_leader",
++								   "bf2_sixth_squad_leader",  "bf2_seventh_squad_leader", "bf2_eighth_squad_leader",
++								   "bf2_ninth_squad_leader", "bf2_commander" };
++static const int SQUAD_RADIO = 2;
++static const int SL_FIRST    = 3;
++static const int SL_LAST     = 13;
++
++static int typeOf(int prIndex) {
++	for (const IndexType &it : INDEX_TYPES) {
++		if (it.prIndex == prIndex) {
++			return it.type;
++		}
++	}
++	if (prIndex >= SQUAD_RADIO && prIndex <= SL_LAST) {
++		return GlobalShortcutType::Whisper_Shout;
++	}
++	return -1;
++}
++
++static ShortcutTarget defaultTarget(int prIndex) {
++	ShortcutTarget st;
++	st.bUsers       = false;
++	st.bForceCenter = true;
++	if (prIndex == SQUAD_RADIO) {
++		st.iChannel = -3;
++		st.qsGroup  = QString(QLatin1String(""));
++	} else {
++		st.iChannel  = -2;
++		st.qsGroup   = QLatin1String(SL_GROUPS[prIndex - SL_FIRST]);
++		st.bChildren = true;
++	}
++	return st;
++}
++
++static int prIndexOf(const Shortcut &s) {
++	if (s.iIndex == GlobalShortcutType::Whisper_Shout) {
++		if (!s.qvData.canConvert< ShortcutTarget >()) {
++			return -1;
++		}
++		const ShortcutTarget st = s.qvData.value< ShortcutTarget >();
++		if (st.bUsers || st.bCurrentSelection) {
++			return -1;
++		}
++		if (st.iChannel == -3 && st.qsGroup.isEmpty()) {
++			return SQUAD_RADIO;
++		}
++		if (st.iChannel == -2) {
++			for (int i = SL_FIRST; i <= SL_LAST; i++) {
++				if (st.qsGroup == QLatin1String(SL_GROUPS[i - SL_FIRST])) {
++					return i;
++				}
++			}
++		}
++		return -1;
++	}
++	for (const IndexType &it : INDEX_TYPES) {
++		if (it.type == s.iIndex) {
++			return it.prIndex;
++		}
++	}
++	return -1;
++}
++
++void load(Settings &settings) {
++	QSettings reg(QLatin1String(REG_PATH), QSettings::NativeFormat);
++	const int n = reg.beginReadArray(QLatin1String("shortcuts"));
++	QList< Shortcut > imported;
++	for (int i = 0; i < n; i++) {
++		reg.setArrayIndex(i);
++		Shortcut s;
++		const int prIndex = reg.value(QLatin1String("index"), -1).toInt();
++		s.iIndex          = typeOf(prIndex);
++		if (s.iIndex < 0) {
++			continue;
++		}
++		s.qlButtons = reg.value(QLatin1String("keys")).toList();
++		s.bSuppress = reg.value(QLatin1String("suppress"), false).toBool();
++		if (s.iIndex == GlobalShortcutType::Whisper_Shout) {
++			const QVariant data = reg.value(QLatin1String("data"));
++			s.qvData = data.canConvert< ShortcutTarget >() ? data : QVariant::fromValue(defaultTarget(prIndex));
++		} else if (s.iIndex == GlobalShortcutType::MuteSelf || s.iIndex == GlobalShortcutType::DeafenSelf) {
++			s.qvData = reg.value(QLatin1String("data"), 0).toInt();
++		}
++		imported << s;
++	}
++	reg.endArray();
++	if (imported.isEmpty()) {
++		return;
++	}
++	imported = GlobalShortcutWin::migrateSettings(imported);
++
++	// The registry is the source of truth for everything PR knows about
++	QList< Shortcut > merged;
++	for (const Shortcut &s : settings.qlShortcuts) {
++		if (prIndexOf(s) < 0) {
++			merged << s;
++		}
++	}
++	merged << imported;
++	settings.qlShortcuts = merged;
++}
++
++// QSettings stores a QVariant as "@Variant(" + QDataStream bytes as Latin-1 + ")";
++// with zero bytes in it the string goes to the registry as REG_BINARY UTF-16.
++static void writeVariantBytes(HKEY key, const wchar_t *name, const QByteArray &bytes) {
++	const QString str = QLatin1String("@Variant(") + QString::fromLatin1(bytes) + QLatin1String(")");
++	RegSetValueExW(key, name, 0, REG_BINARY, reinterpret_cast< const BYTE * >(str.utf16()),
++				   static_cast< DWORD >(str.size() * 2));
++}
++
++// Mumble 1.3 ShortcutTarget in a QVariant (no "v2" prefix, Qt_4_0 stream)
++static QByteArray legacyTarget(const ShortcutTarget &st) {
++	QByteArray bytes;
++	QDataStream ds(&bytes, QIODevice::WriteOnly);
++	ds.setVersion(QDataStream::Qt_4_0);
++	ds << quint32(127); // QVariant::UserType in Qt 4 streams
++	ds.writeBytes("ShortcutTarget", 15);
++	ds << st.bUsers << st.bForceCenter;
++	if (st.bUsers) {
++		ds << st.qlUsers;
++	} else {
++		// The launcher writes an empty (not null) group
++		const QString group = st.qsGroup.isNull() ? QString(QLatin1String("")) : st.qsGroup;
++		ds << st.iChannel << group << st.bLinks << st.bChildren;
++	}
++	return bytes;
++}
++
++void save(const Settings &settings) {
++	QList< QPair< int, Shortcut > > out;
++	for (const Shortcut &s : settings.qlShortcuts) {
++		const int prIndex = prIndexOf(s);
++		QList< QVariant > legacy;
++		if (prIndex > 0 && GlobalShortcutWin::toLegacyButtons(s.qlButtons, legacy)) {
++			Shortcut copy  = s;
++			copy.qlButtons = legacy;
++			out << qMakePair(prIndex, copy);
++		}
++	}
++
++	{
++		QSettings reg(QLatin1String(REG_PATH), QSettings::NativeFormat);
++		reg.remove(QLatin1String("shortcuts"));
++		reg.beginWriteArray(QLatin1String("shortcuts"), out.size());
++		for (int i = 0; i < out.size(); i++) {
++			const Shortcut &s = out.at(i).second;
++			reg.setArrayIndex(i);
++			reg.setValue(QLatin1String("index"), out.at(i).first);
++			reg.setValue(QLatin1String("keys"), s.qlButtons);
++			reg.setValue(QLatin1String("suppress"), s.bSuppress);
++			if (s.iIndex == GlobalShortcutType::Whisper_Shout) {
++				reg.setValue(QLatin1String("data"), 0); // replaced below
++			} else if (s.iIndex == GlobalShortcutType::MuteSelf || s.iIndex == GlobalShortcutType::DeafenSelf) {
++				reg.setValue(QLatin1String("data"), s.qvData.toInt());
++			} else {
++				reg.setValue(QLatin1String("data"), QVariant());
++			}
++		}
++		reg.endArray();
++		reg.sync();
++	}
++
++	HKEY root;
++	if (RegOpenKeyExW(HKEY_CURRENT_USER, REG_KEY, 0, KEY_SET_VALUE, &root) != ERROR_SUCCESS) {
++		return;
++	}
++	for (int i = 0; i < out.size(); i++) {
++		const Shortcut &s = out.at(i).second;
++		if (s.iIndex != GlobalShortcutType::Whisper_Shout) {
++			continue;
++		}
++		HKEY item;
++		const std::wstring sub = std::to_wstring(i + 1);
++		if (RegOpenKeyExW(root, sub.c_str(), 0, KEY_SET_VALUE, &item) == ERROR_SUCCESS) {
++			writeVariantBytes(item, L"data", legacyTarget(s.qvData.value< ShortcutTarget >()));
++			RegCloseKey(item);
++		}
++	}
++	RegCloseKey(root);
++}
++
++} // namespace PRShortcuts
+diff --git a/src/mumble/PRShortcuts.h b/src/mumble/PRShortcuts.h
+new file mode 100644
+index 0000000..8a9446b
+--- /dev/null
++++ b/src/mumble/PRShortcuts.h
+@@ -0,0 +1,20 @@
++// Copyright The Mumble Developers. All rights reserved.
++// Use of this source code is governed by a BSD-style license
++// that can be found in the LICENSE file at the root of the
++// Mumble source tree or at <https://www.mumble.info/LICENSE>.
++
++#ifndef MUMBLE_MUMBLE_PRSHORTCUTS_H_
++#define MUMBLE_MUMBLE_PRSHORTCUTS_H_
++
++struct Settings;
++
++/// Project Reality: shortcuts shared with the PR launcher through the registry
++/// key of PRMumble 1.3 (see PRShortcuts.cpp).
++namespace PRShortcuts {
++/// Replaces the PR shortcuts in settings with the ones in the registry.
++void load(Settings &settings);
++/// Writes the PR shortcuts of settings to the registry in the 1.3 format.
++void save(const Settings &settings);
++} // namespace PRShortcuts
++
++#endif
+diff --git a/src/mumble/PluginManager.cpp b/src/mumble/PluginManager.cpp
+index d285e5e..f172b1f 100644
+--- a/src/mumble/PluginManager.cpp
++++ b/src/mumble/PluginManager.cpp
+@@ -27,6 +27,10 @@
+ #include "ProcessResolver.h"
+ #include "ServerHandler.h"
+ #include "Global.h"
++#ifdef Q_OS_WIN
++#	include "ClientUser.h"
++#	include "PRReality.h"
++#endif
+ 
+ #ifdef USE_MANUAL_PLUGIN
+ #	include "ManualPlugin.h"
+@@ -381,6 +385,18 @@ void PluginManager::rescanPlugins() {
+ 
+ 		it++;
+ 	}
++
++	// PR: enable the ProjectReality (Link) plugin with positional data unless configured
++	for (auto pluginIt = m_pluginHashMap.begin(); pluginIt != m_pluginHashMap.end(); ++pluginIt) {
++		plugin_ptr_t plugin = pluginIt.value();
++		QString pluginHash  = QLatin1String(
++            QCryptographicHash::hash(plugin->getFilePath().toUtf8(), QCryptographicHash::Sha1).toHex());
++		if (plugin->getName().startsWith(QLatin1String("ProjectReality"))
++			&& !Global::get().s.qhPluginSettings.contains(pluginHash)) {
++			loadPlugin(plugin->getID());
++			plugin->enablePositionalData(true);
++		}
++	}
+ }
+ 
+ const_plugin_ptr_t PluginManager::getPlugin(plugin_id_t pluginID) const {
+@@ -923,7 +939,15 @@ void PluginManager::on_keyEvent(unsigned int key, Qt::KeyboardModifiers modifier
+ 
+ void PluginManager::on_syncPositionalData() {
+ 	// fetch positional data
+-	if (fetchPositionalData()) {
++	const bool fetched = fetchPositionalData();
++#ifdef Q_OS_WIN
++	{
++		// PR: own in-game position for the HUD of the teammates
++		QReadLocker rLock(&m_positionalData.m_lock);
++		PRReality::sendPosition(m_positionalData.m_playerPos, fetched);
++	}
++#endif
++	if (fetched) {
+ 		// Sync the gathered data (context + identity) with the server
+ 		if (!Global::get().uiSession) {
+ 			// For some reason the local session ID is not set -> clear all data sent to the server in order to
+@@ -950,6 +974,11 @@ void PluginManager::on_syncPositionalData() {
+ 				if (m_sentData.identity != m_positionalData.m_identity) {
+ 					m_sentData.identity = m_positionalData.m_identity;
+ 					mpus.set_plugin_identity(m_sentData.identity.toUtf8().constData());
++#ifdef Q_OS_WIN
++					if (ClientUser *self = ClientUser::get(Global::get().uiSession)) {
++						PRReality::setIdentity(self, m_sentData.identity);
++					}
++#endif
+ 				}
+ 
+ 				if (Global::get().sh) {
+diff --git a/src/mumble/Settings.cpp b/src/mumble/Settings.cpp
+index 33ce253..10fdac7 100644
+--- a/src/mumble/Settings.cpp
++++ b/src/mumble/Settings.cpp
+@@ -30,6 +30,10 @@
+ #include <QProcessEnvironment>
+ #include <QRegularExpression>
+ #include <QSettings>
++
++#ifdef Q_OS_WIN
++#	include "PRShortcuts.h"
++#endif
+ #include <QStandardPaths>
+ #include <QSystemTrayIcon>
+ #if QT_VERSION >= QT_VERSION_CHECK(5, 9, 0)
+@@ -208,6 +212,11 @@ void Settings::save(const QString &path) const {
+ 		qWarning("Failed at moving settings from %s to %s - reason: %s", qUtf8Printable(tmpFile.fileName()),
+ 				 qUtf8Printable(path), qUtf8Printable(tmpFile.errorString()));
+ 	}
++
++#ifdef Q_OS_WIN
++	// PR: key binds shared with the PR launcher
++	PRShortcuts::save(*this);
++#endif
+ }
+ 
+ void Settings::save() const {
+diff --git a/src/mumble/Settings.h b/src/mumble/Settings.h
+index 0b0283f..f6b674f 100644
+--- a/src/mumble/Settings.h
++++ b/src/mumble/Settings.h
+@@ -229,7 +229,7 @@ struct Settings {
+ 	bool muteCueShown   = false;
+ 	QString qsTxMuteCue = cqsDefaultMuteCue;
+ 
+-	bool bTransmitPosition         = false;
++	bool bTransmitPosition         = true;
+ 	bool unmuteOnUndeaf            = false;
+ 	bool bMute                     = false;
+ 	bool bDeaf                     = false;
+@@ -334,12 +334,13 @@ struct Settings {
+ 	bool bExclusiveInput          = false;
+ 	bool bExclusiveOutput         = false;
+ 	EchoCancelOptionID echoOption = EchoCancelOptionID::SPEEX_MIXED;
+-	bool bPositionalAudio         = false;
+-	bool bPositionalHeadphone     = false;
+-	float fAudioMinDistance       = 1.0f;
+-	float fAudioMaxDistance       = 15.0f;
++	bool bPositionalAudio         = true;
++	// PR: defaults of PRMumble 1.3 (Settings constructor in mumble_app.dll)
++	bool bPositionalHeadphone     = true;
++	float fAudioMinDistance       = 2.5f;
++	float fAudioMaxDistance       = 75.0f; // PR: local voice range
+ 	float fAudioMaxDistVolume     = 0.0f;
+-	float fAudioBloom             = 0.5f;
++	float fAudioBloom             = 0.15f;
+ 	/// Contains the settings for each individual plugin. The key in this map is the Hex-represented SHA-1
+ 	/// hash of the plugin's UTF-8 encoded absolute file-path on the hard-drive.
+ 	QHash< QString, PluginSetting > qhPluginSettings = {};
+diff --git a/src/mumble/main.cpp b/src/mumble/main.cpp
+index 7734149..f82ee3e 100644
+--- a/src/mumble/main.cpp
++++ b/src/mumble/main.cpp
+@@ -50,6 +50,10 @@
+ #include "Version.h"
+ #include "VersionCheck.h"
+ #include "Global.h"
++#ifdef Q_OS_WIN
++#	include "PRReality.h"
++#	include "PRShortcuts.h"
++#endif
+ 
+ #include <QLocale>
+ #include <QScreen>
+@@ -191,6 +195,11 @@ int main(int argc, char **argv) {
+ 			qCritical("Missing argument for --config!");
+ 			return 1;
+ 		}
++	} else if (QDir(QCoreApplication::applicationDirPath()).exists(QLatin1String("data"))) {
++		// PR portable: settings, certificate and database live in data\ next to the exe
++		settingsFile =
++			QDir(QCoreApplication::applicationDirPath()).filePath(QLatin1String("data/mumble_settings.json"));
++		Global::g_global_struct = new Global(settingsFile);
+ 	} else {
+ 		Global::g_global_struct = new Global();
+ 	}
+@@ -212,6 +221,7 @@ int main(int argc, char **argv) {
+ 	bool customJackClientName = false;
+ 	bool bRpcMode             = false;
+ 	bool printTranslationDirs = false;
++	bool startMinimized       = false;
+ 	QString rpcCommand;
+ 	QUrl url;
+ 	QDir qdCert(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation));
+@@ -244,6 +254,8 @@ int main(int argc, char **argv) {
+ 								   "  --version     Print version information and exit\n"
+ 								   "  -m, --multiple\n"
+ 								   "                Allow multiple instances of the client to be started.\n"
++								   "  -z, --minimize\n"
++								   "                Start minimized (used by the Project Reality launcher).\n"
+ 								   "  -c, --config\n"
+ 								   "                Specify an alternative configuration file.\n"
+ 								   "                If you use this to run multiple instances of Mumble at once,\n"
+@@ -330,6 +342,9 @@ int main(int argc, char **argv) {
+ 				return 1;
+ 			} else if (args.at(i) == QLatin1String("-m") || args.at(i) == QLatin1String("--multiple")) {
+ 				bAllowMultiple = true;
++			} else if (args.at(i) == QLatin1String("-z") || args.at(i) == QLatin1String("--minimize")) {
++				// PR launcher: start minimized
++				startMinimized = true;
+ 			} else if (args.at(i) == QLatin1String("-n") || args.at(i) == QLatin1String("--noidentity")) {
+ 				suppressIdentity                  = true;
+ 				Global::get().s.bSuppressIdentity = true;
+@@ -426,6 +441,10 @@ int main(int argc, char **argv) {
+ 				} else {
+ 					if (!bRpcMode) {
+ 						QUrl u = QUrl::fromEncoded(args.at(i).toUtf8());
++						if (u.isValid() && (u.scheme() == QLatin1String("prmumble"))) {
++							// PR launcher passes prmumble://name@ip:port
++							u.setScheme(QLatin1String("mumble"));
++						}
+ 						if (u.isValid() && (u.scheme() == QLatin1String("mumble"))) {
+ 							url = u;
+ 						} else {
+@@ -564,6 +583,10 @@ int main(int argc, char **argv) {
+ 	} else {
+ 		Global::get().s.load(settingsFile);
+ 	}
++#ifdef Q_OS_WIN
++	// PR: key binds shared with the PR launcher
++	PRShortcuts::load(Global::get().s);
++#endif
+ 	if (!Global::get().migratedDBPath.isEmpty()) {
+ 		// We have migrated the DB to a new location. Make sure that the settings hold the correct (new) path and that
+ 		// this path is written to disk immediately in order to minimize the risk of losing this information due to a
+@@ -684,10 +707,19 @@ int main(int argc, char **argv) {
+ 
+ 	// Main Window
+ 	Global::get().mw = new MainWindow(nullptr);
+-	Global::get().mw->show();
++	if (startMinimized) {
++		Global::get().mw->showMinimized();
++	} else {
++		Global::get().mw->show();
++	}
+ 
+ 	Global::get().talkingUI = new TalkingUI();
+ 
++#ifdef Q_OS_WIN
++	// PR: "who is talking" for the launcher HUD
++	PRReality::start(Global::get().mw);
++#endif
++
+ 	// Set TalkingUI's position
+ 	Global::get().talkingUI->move(getTalkingUIPosition());
+ 

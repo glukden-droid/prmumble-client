@@ -1,0 +1,89 @@
+# Сборка клиента Mumble 1.5 для Windows: портабл-архив .zip и установщик .msi.
+# Запуск: Actions -> Mumble client -> Run workflow.
+# Использует официальные скрипты CI самого Mumble.
+name: Mumble client
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Тег Mumble"
+        default: "v1.5.939"
+
+env:
+  BUILD_TYPE: Release
+  CMAKE_OPTIONS: -Dtests=OFF -Dserver=OFF -Dtest-lto=OFF -Dwarnings-as-errors=OFF
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    steps:
+      # patches/*.patch have LF line endings: check the sources out as they are
+      - run: git config --global core.autocrlf false
+
+      - uses: actions/checkout@v4
+        with:
+          repository: mumble-voip/mumble
+          ref: ${{ inputs.tag }}
+          submodules: recursive
+          fetch-depth: 1
+
+      # PR patches (patches/*.patch) on top of the official sources
+      - uses: actions/checkout@v4
+        with:
+          path: pr
+      - name: PR patches
+        shell: bash
+        run: |
+          for p in pr/patches/*.patch; do
+            echo "apply $p"
+            git apply --whitespace=nowarn "$p"
+          done
+          rm -rf pr/.git
+
+      - name: Set environment variables
+        shell: bash
+        run: ./.github/workflows/set_environment_variables.sh windows-2022 static x86_64 "$GITHUB_WORKSPACE"
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ env.MUMBLE_ENVIRONMENT_DIR }}
+          key: ${{ env.MUMBLE_ENVIRONMENT_VERSION }}
+
+      - uses: ./.github/actions/install-dependencies
+        with:
+          type: static
+          os: windows-2022
+          arch: x86_64
+
+      - name: Build
+        shell: bash
+        run: |
+          export MUMBLE_BUILD_NUMBER="${TAG##*.}"
+          ./.github/workflows/build.sh windows-2022 static x86_64
+        env:
+          TAG: ${{ inputs.tag }}
+
+      # Портабл: папка PRMumble\ заменяет mods\pr\bin\PRMumble (лаунчер запускает
+      # PRMumble.exe). Настройки, сертификат и база хранятся в data\ рядом с exe.
+      - name: Portable
+        shell: pwsh
+        run: |
+          $out = "mumble-portable/PRMumble"
+          New-Item -ItemType Directory -Force "$out/data", "$out/plugins" | Out-Null
+          Copy-Item build/*.exe, build/*.dll $out -ErrorAction SilentlyContinue
+          Copy-Item build/plugins/*.dll "$out/plugins" -ErrorAction SilentlyContinue
+          if (-not (Test-Path "$out/mumble.exe")) { throw "mumble.exe не найден в build/" }
+          Move-Item "$out/mumble.exe" "$out/PRMumble.exe"
+          Copy-Item pr/README.md "mumble-portable/README.md"
+          Get-ChildItem -Recurse $out | Select-Object FullName, Length
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mumble-portable-${{ inputs.tag }}-win64
+          path: mumble-portable/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mumble-installer-${{ inputs.tag }}-win64
+          path: build/**/mumble*.msi
