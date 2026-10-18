@@ -901,7 +901,7 @@ index d285e5e..f172b1f 100644
  
  				if (Global::get().sh) {
 diff --git a/src/mumble/Settings.cpp b/src/mumble/Settings.cpp
-index 33ce253..10fdac7 100644
+index 33ce253..cd003d8 100644
 --- a/src/mumble/Settings.cpp
 +++ b/src/mumble/Settings.cpp
 @@ -30,6 +30,10 @@
@@ -927,6 +927,17 @@ index 33ce253..10fdac7 100644
  }
  
  void Settings::save() const {
+@@ -234,7 +243,9 @@ void Settings::load(const QString &path) {
+ 
+ 		settingsJSON.get_to(*this);
+ 
+-		if (!mumbleQuitNormally) {
++		// PR: the launcher always kills the client (game exit, server change), so it never
++		// quits normally; don't ask to load the backup on every start
++		if (false && !mumbleQuitNormally) {
+ 			// These settings were saved without Mumble quitting normally afterwards. In order to prevent loading
+ 			// settings that are causing crashes, we check if we can load the backup instead.
+ 			if (!path.endsWith(QLatin1String(BACKUP_FILE_EXTENSION))) {
 diff --git a/src/mumble/Settings.h b/src/mumble/Settings.h
 index 0b0283f..f6b674f 100644
 --- a/src/mumble/Settings.h
