@@ -1,49 +1,69 @@
-# Клиент Mumble 1.5 для Project Reality
+# Mumble 1.5 client for Project Reality
 
-Собирает клиент Mumble ветки 1.5 (по умолчанию `v1.5.939`) для Windows из
-официальных исходников <https://github.com/mumble-voip/mumble> с патчем PR
-(`patches/`). Сборка заменяет PRMumble 1.3 из игры и работает с сервером
-prmumble-1.5 (<https://github.com/glukden-droid/prmumble>).
+**English** | [Русский](README.ru.md)
 
-## Что добавляет патч
+Mumble 1.5 client (default `v1.5.939`) for Windows, built from the official
+sources <https://github.com/mumble-voip/mumble> with the PR patch
+(`patches/`). It replaces the game's PRMumble 1.3 and works with the prmumble
+server (<https://github.com/glukden-droid/prmumble>).
 
-Всё, что лаунчер PR (`Reality.BF2.dll`) ждёт от PRMumble 1.3, подробности в `NOTES.md`:
+## Download
 
-- запуск лаунчером: `PRMumble.exe -m -z prmumble://ник@ip:порт`
-  (схема `prmumble://`, ключ `-z` — свёрнутым);
-- единственный плагин — ProjectReality (`plugins\ProjectReality.dll`, это Link-плагин Mumble под другим именем), игровые плагины не собираются; он включён сам, позиционный звук включён: позицию и identity
-  (команда, отряд, ник, одноразовый пароль) лаунчер пишет в `MumbleLink`;
-- своя позиция уходит на сервер в `UserState`, поле 20 (как в 1.3: когда
-  сдвинулась больше чем на 10 по любой оси), чужие принимаются;
-- HUD «кто говорит»: общая память `PRMumbleSharedData1`, формат как у 1.3;
-- горячие клавиши (рация отряда, SL→SL, SL→командир, mute, deafen, громкость)
-  хранятся и в реестре `HKCU\SOFTWARE\Project Reality\PR Mumble\shortcuts`
-  в формате 1.3: лаунчер читает их для HUD и пишет туда свои назначения;
-- поле 20 протокола = позиция, временные токены перенесены на 120 — как на сервере.
+Builds are on the [Releases](https://github.com/glukden-droid/prmumble-client/releases) page:
+`PRMumble-portable-win64.zip` for the game and an `.msi` (regular Mumble install).
+The build version is `1.5.939-prN` (N = build number), shown in "About" and
+in `PRMumble\VERSION.txt`.
 
-## Как собрать
+## What the patch adds
+
+Everything the PR launcher expects from PRMumble 1.3, details in `NOTES.md`:
+
+- started by the launcher: `PRMumble.exe -m -z prmumble://name@ip:port`
+  (`prmumble://` scheme, `-z` = minimized);
+- the only plugin is ProjectReality (`plugins\ProjectReality.dll`, Mumble's
+  Link plugin renamed), enabled by itself; the launcher writes the position and
+  identity (team, squad, name, one-time password) to `MumbleLink`;
+- own position goes to the server in `UserState` field 20 (as in 1.3: when it
+  moved more than 10 on any axis), others are received;
+- "who is talking" HUD: shared memory `PRMumbleSharedData1`, same format as 1.3;
+- audio as in PRMumble 1.3: local voice is positional up to 75 m; squad radio,
+  SL and commander are heard at full volume at any distance;
+- shortcuts (squad radio, SL to SL, SL to commander, mute, deafen, volume) are
+  also kept in `HKCU\SOFTWARE\Project Reality\PR Mumble\shortcuts` in the 1.3
+  format: the launcher reads them for the HUD and writes its own binds there;
+- no "load backup settings" question on every start (the launcher always kills
+  the client);
+- protocol field 20 = position, temporary access tokens moved to 120, as on the server.
+
+## Install
+
+1. Close the game and the launcher.
+2. Keep the old folder: rename `mods\pr\bin\PRMumble` to `PRMumble_1.3`.
+3. Unzip into `mods\pr\bin\` so that you get a `PRMumble` folder.
+   Windows marks downloaded files as "from the internet" and shows
+   "unknown publisher" (the build is not signed). Remove the mark once
+   (PowerShell in `mods\pr\bin\PRMumble`):
+   `Get-ChildItem -Recurse | Unblock-File`
+4. Start the launcher and join a server; the launcher starts the new client.
+
+Settings, certificate and database are kept in `PRMumble\data\` (without the
+`data` folder the client works as a regular installed Mumble). PR shortcuts
+are taken from the registry where PRMumble 1.3 left them.
+
+The UI language follows Windows; change it in Settings → User Interface → Language.
+
+Rollback: delete `PRMumble` and rename `PRMumble_1.3` back to `PRMumble`.
+
+## Build
 
 1. GitHub → **Actions** → **Mumble client** → **Run workflow**.
-2. При необходимости укажите другой тег (например, `v1.5.940`).
-3. Скачайте артефакт:
-   - `mumble-portable-<тег>-win64` — папка `PRMumble`;
-   - `mumble-installer-<тег>-win64` — обычный установщик `.msi` (без портабл-режима).
+2. Optionally set another Mumble tag (e.g. `v1.5.940`).
+3. Download the artifact:
+   - `mumble-portable-<tag>-prN-win64` - the `PRMumble` folder;
+   - `mumble-installer-<tag>-prN-win64` - a regular `.msi` installer (no portable mode).
 
-## Установка
+## Checks
 
-1. Закройте игру и лаунчер.
-2. Сохраните старую папку: переименуйте `mods\pr\bin\PRMumble` в `PRMumble_1.3`.
-3. Положите папку `PRMumble` из артефакта в `mods\pr\bin\`.
-4. Запустите лаунчер и зайдите на сервер — лаунчер сам запустит новый клиент.
-
-Настройки, сертификат и база хранятся в `PRMumble\data\` (если папки `data`
-нет, клиент работает как обычная установленная версия). Горячие клавиши PR
-берутся из реестра, где их оставил PRMumble 1.3.
-
-Откат: удалите `PRMumble` и верните имя `PRMumble_1.3` → `PRMumble`.
-
-## Проверка
-
-- `scripts\hud_dump.py` — что клиент пишет в общую память HUD (на ПК с игрой);
-- `scripts\pr_shortcuts.py` — горячие клавиши PR в реестре;
-- `scripts\prmumble_cmdline.ps1` — как лаунчер запустил клиент.
+- `scripts\hud_dump.py` - what the client writes to the HUD shared memory (on the game PC);
+- `scripts\pr_shortcuts.py` - PR shortcuts in the registry;
+- `scripts\prmumble_cmdline.ps1` - how the launcher started the client.

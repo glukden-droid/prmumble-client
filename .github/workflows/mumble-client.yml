@@ -77,7 +77,7 @@ jobs:
           Copy-Item build/plugins/*.dll "$out/plugins" -ErrorAction SilentlyContinue
           if (-not (Test-Path "$out/mumble.exe")) { throw "mumble.exe не найден в build/" }
           Move-Item "$out/mumble.exe" "$out/PRMumble.exe"
-          Copy-Item pr/README.md "mumble-portable/README.md"
+          Copy-Item pr/README.md, pr/README.ru.md "mumble-portable/"
           "${{ inputs.tag }}-pr${{ github.run_number }}" | Set-Content -Encoding ascii "$out/VERSION.txt"
           Get-ChildItem -Recurse $out | Select-Object FullName, Length
 
