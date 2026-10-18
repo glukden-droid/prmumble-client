@@ -60,6 +60,8 @@ jobs:
         shell: bash
         run: |
           export MUMBLE_BUILD_NUMBER="${TAG##*.}"
+          # PR build number in the version string (1.5.939-prN), MSVC reads CL
+          export CL="/DPR_BUILD=${{ github.run_number }}"
           ./.github/workflows/build.sh windows-2022 static x86_64
         env:
           TAG: ${{ inputs.tag }}
@@ -76,14 +78,15 @@ jobs:
           if (-not (Test-Path "$out/mumble.exe")) { throw "mumble.exe не найден в build/" }
           Move-Item "$out/mumble.exe" "$out/PRMumble.exe"
           Copy-Item pr/README.md "mumble-portable/README.md"
+          "${{ inputs.tag }}-pr${{ github.run_number }}" | Set-Content -Encoding ascii "$out/VERSION.txt"
           Get-ChildItem -Recurse $out | Select-Object FullName, Length
 
       - uses: actions/upload-artifact@v4
         with:
-          name: mumble-portable-${{ inputs.tag }}-win64
+          name: mumble-portable-${{ inputs.tag }}-pr${{ github.run_number }}-win64
           path: mumble-portable/
 
       - uses: actions/upload-artifact@v4
         with:
-          name: mumble-installer-${{ inputs.tag }}-win64
+          name: mumble-installer-${{ inputs.tag }}-pr${{ github.run_number }}-win64
           path: build/**/mumble*.msi

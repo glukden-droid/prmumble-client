@@ -178,6 +178,24 @@ index c3a23f2..b342401 100644
  	// A list of channels the user wants to start listening to.
  	repeated uint32 listening_channel_add = 21;
  	// a list of channels the user does no longer want to listen to.
+diff --git a/src/Version.h b/src/Version.h
+index 716b2af..4703962 100644
+--- a/src/Version.h
++++ b/src/Version.h
+@@ -15,7 +15,12 @@
+ #define MUMXTEXT(X) #X
+ #define MUMTEXT(X) MUMXTEXT(X)
+ 
+-#define MUMBLE_RELEASE MUMTEXT(MUMBLE_VERSION)
++#ifdef PR_BUILD
++// PR: build number of the PR client (GitHub run number), e.g. 1.5.939-pr12
++#	define MUMBLE_RELEASE MUMTEXT(MUMBLE_VERSION) "-pr" MUMTEXT(PR_BUILD)
++#else
++#	define MUMBLE_RELEASE MUMTEXT(MUMBLE_VERSION)
++#endif
+ 
+ namespace Version {
+ 
 diff --git a/src/mumble/AudioOutputSpeech.cpp b/src/mumble/AudioOutputSpeech.cpp
 index 542f6dd..57fa7fe 100644
 --- a/src/mumble/AudioOutputSpeech.cpp
