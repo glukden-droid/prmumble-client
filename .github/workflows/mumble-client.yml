@@ -78,6 +78,8 @@ jobs:
           if (-not (Test-Path "$out/mumble.exe")) { throw "mumble.exe не найден в build/" }
           Move-Item "$out/mumble.exe" "$out/PRMumble.exe"
           Copy-Item pr/README.md, pr/README.ru.md "mumble-portable/"
+          # artifacts drop empty folders; without data\ the client is not portable
+          "Settings, certificate and database of PRMumble are kept in this folder." | Set-Content -Encoding ascii "$out/data/README.txt"
           "${{ inputs.tag }}-pr${{ github.run_number }}" | Set-Content -Encoding ascii "$out/VERSION.txt"
           Get-ChildItem -Recurse $out | Select-Object FullName, Length
 
