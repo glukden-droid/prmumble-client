@@ -67,3 +67,25 @@ Rollback: delete `PRMumble` and rename `PRMumble_1.3` back to `PRMumble`.
 - `scripts\hud_dump.py` - what the client writes to the HUD shared memory (on the game PC);
 - `scripts\pr_shortcuts.py` - PR shortcuts in the registry;
 - `scripts\prmumble_cmdline.ps1` - how the launcher started the client.
+
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://about.signpath.io),
+certificate by [SignPath Foundation](https://signpath.org) (applied for; until
+then the builds are not signed).
+
+- Committers and reviewers: [glukden-droid](https://github.com/glukden-droid)
+- Approvers: [glukden-droid](https://github.com/glukden-droid)
+
+Signed files are built only by the GitHub Actions workflow of this repository
+from the official Mumble sources and `patches/`.
+
+## Privacy policy
+
+This program will not transfer any information to other networked systems
+unless specifically requested by the user or the person installing or
+operating it. The client connects only to the voice servers the user (or the
+Project Reality launcher on the user's behalf) chooses. Mumble's update checks,
+plugin update checks, usage statistics and crash reports are removed from this
+build; the public server list is loaded only when the user opens it in the
+Connect dialog.

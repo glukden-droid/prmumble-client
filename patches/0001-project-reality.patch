@@ -299,6 +299,20 @@ index 9fc23d9..29d6ded 100644
  	/// Inject a native Windows raw input message into GlobalShortcutWin's
  	/// thread. This method is meant to be called from the main thread
  	/// to pass native Windows keyboard messages to GlobalShortcutWin.
+diff --git a/src/mumble/MainWindow.cpp b/src/mumble/MainWindow.cpp
+index f03b529..d13643b 100644
+--- a/src/mumble/MainWindow.cpp
++++ b/src/mumble/MainWindow.cpp
+@@ -4217,7 +4217,8 @@ void MainWindow::openAboutQtDialog() {
+ }
+ 
+ void MainWindow::versionCheck() {
+-	new VersionCheck(false, this);
++	// PR: official Mumble updates would replace the PR build; show the PR client releases
++	QDesktopServices::openUrl(QUrl(QLatin1String("https://github.com/glukden-droid/prmumble-client/releases")));
+ }
+ 
+ void MainWindow::on_muteCuePopup_triggered() {
 diff --git a/src/mumble/Messages.cpp b/src/mumble/Messages.cpp
 index bcfdc15..d2de53c 100644
 --- a/src/mumble/Messages.cpp
@@ -957,7 +971,7 @@ index 33ce253..cd003d8 100644
  			// settings that are causing crashes, we check if we can load the backup instead.
  			if (!path.endsWith(QLatin1String(BACKUP_FILE_EXTENSION))) {
 diff --git a/src/mumble/Settings.h b/src/mumble/Settings.h
-index 0b0283f..f6b674f 100644
+index 0b0283f..145eae8 100644
 --- a/src/mumble/Settings.h
 +++ b/src/mumble/Settings.h
 @@ -229,7 +229,7 @@ struct Settings {
@@ -988,8 +1002,28 @@ index 0b0283f..f6b674f 100644
  	/// Contains the settings for each individual plugin. The key in this map is the Hex-represented SHA-1
  	/// hash of the plugin's UTF-8 encoded absolute file-path on the hard-drive.
  	QHash< QString, PluginSetting > qhPluginSettings = {};
+@@ -416,7 +417,7 @@ struct Settings {
+ 	bool bLockLayout                     = false;
+ 	bool bHideInTray                     = false;
+ 	bool bStateInTray                    = true;
+-	bool bUsage                          = true;
++	bool bUsage                          = false; // PR: no usage statistics
+ 	bool bShowUserCount                  = false;
+ 	bool bShowVolumeAdjustments          = true;
+ 	bool bShowNicknamesOnly              = false;
+@@ -441,8 +442,8 @@ struct Settings {
+ 
+ 	QString qsImagePath = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+ 
+-	bool bUpdateCheck      = true;
+-	bool bPluginCheck      = true;
++	bool bUpdateCheck      = false; // PR: no update checks
++	bool bPluginCheck      = false; // PR: no plugin update checks
+ 	bool bPluginAutoUpdate = false;
+ 
+ 	// PTT Button window
 diff --git a/src/mumble/main.cpp b/src/mumble/main.cpp
-index 7734149..f82ee3e 100644
+index 7734149..6d1c573 100644
 --- a/src/mumble/main.cpp
 +++ b/src/mumble/main.cpp
 @@ -50,6 +50,10 @@
@@ -1085,3 +1119,33 @@ index 7734149..f82ee3e 100644
  	// Set TalkingUI's position
  	Global::get().talkingUI->move(getTalkingUIPosition());
  
+@@ -768,26 +800,9 @@ int main(int argc, char **argv) {
+ 			CertWizard::tr("<b>Certificate Expiry:</b> Your certificate is about to expire. You need to renew it, "
+ 						   "or you will no longer be able to connect to servers you are registered on."));
+ 
+-#ifdef QT_NO_DEBUG
+-	// Only perform the version-check for non-debug builds
+-	if (Global::get().s.bUpdateCheck) {
+-		// Use different settings for the version checks depending on whether this is a snapshot build
+-		// or a normal release build
+-#	ifndef SNAPSHOT_BUILD
+-		// release build
+-		new VersionCheck(true, Global::get().mw);
+-#	else
+-		// snapshot build
+-		new VersionCheck(false, Global::get().mw, true);
+-#	endif
+-	}
+-
+-	if (Global::get().s.bPluginCheck) {
+-		Global::get().pluginManager->checkForPluginUpdates();
+-	}
+-#else  // QT_NO_DEBUG
+-	Global::get().mw->msgBox(MainWindow::tr("Skipping version check in debug mode."));
+-#endif // QT_NO_DEBUG
++	// PR: no update checks: official Mumble updates would replace the PR build
++	// (updates come from the prmumble-client releases), and the client contacts
++	// only the servers it is told to connect to
+ 
+ 	if (url.isValid()) {
+ 		OpenURLEvent *oue = new OpenURLEvent(url);

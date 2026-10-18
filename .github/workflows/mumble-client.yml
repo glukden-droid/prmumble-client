@@ -12,7 +12,7 @@ on:
 
 env:
   BUILD_TYPE: Release
-  CMAKE_OPTIONS: -Dtests=OFF -Dserver=OFF -Dtest-lto=OFF -Dwarnings-as-errors=OFF
+  CMAKE_OPTIONS: -Dcrash-report=OFF -Dtests=OFF -Dserver=OFF -Dtest-lto=OFF -Dwarnings-as-errors=OFF
 
 jobs:
   windows:
